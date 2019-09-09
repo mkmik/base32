@@ -1,36 +1,42 @@
 package main
 
 import (
+	"bytes"
 	"encoding/base32"
 	"flag"
-	"io"
+	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 )
 
 var (
 	decode = flag.Bool("d", false, "decode")
+
+	codec = base32.StdEncoding.WithPadding(base32.NoPadding)
 )
 
 func run(decode bool) error {
-	var (
-		w io.Writer
-		r io.Reader
-	)
-	codec := base32.StdEncoding
-	if decode {
-		w = os.Stdout
-		r = base32.NewDecoder(codec, os.Stdin)
-
-	} else {
-		e := base32.NewEncoder(codec, os.Stdout)
-		defer e.Close()
-		w = e
-		r = os.Stdin
+	b, err := ioutil.ReadAll(os.Stdin)
+	if err != nil {
+		return err
 	}
 
-	_, err := io.Copy(w, r)
-	return err
+	if decode {
+		buf := make([]byte, codec.DecodedLen(len(b)))
+		n, err := codec.Decode(buf, bytes.ToUpper(b))
+		if err != nil {
+			return err
+		}
+		_, err = os.Stdout.Write(buf[:n])
+		return err
+	} else {
+
+		s := codec.EncodeToString(b)
+		fmt.Print(strings.ToLower(s))
+	}
+	return nil
 }
 
 func main() {
